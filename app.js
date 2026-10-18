@@ -763,7 +763,7 @@
 
   $('#lockForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const pass = $('#passInput').value;
+    const pass = $('#passInput').value.trim();
     if (!pass) return;
     const btn = e.target.querySelector('[type="submit"]');
     btn.disabled = true;
