@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Browser safety rules: only this site's own scripts may run, and data may only be sent to your Google script. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Fabric Vault</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23ffcc00'/%3E%3Cpath d='M8 8h16v16H8z' fill='none' stroke='%2314283f' stroke-width='3'/%3E%3Cpath d='M8 16h16M16 8v16' stroke='%2314283f' stroke-width='2'/%3E%3C/svg%3E">
 <meta name="description" content="The Tinkerbox fabric library: every fabric, filed by colour, with yards remaining.">
 <meta name="theme-color" content="#ffffff">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -43,7 +47,7 @@
 
 <button id="fab" class="fab" type="button" hidden>+ Add fabric</button>
 
-<dialog id="detail" aria-label="Fabric details"></dialog>
+<dialog id="detail" aria-labelledby="detailTitle"></dialog>
 
 <dialog id="formDlg" aria-labelledby="formTitle">
   <form id="fabricForm" class="sheet-body form" novalidate>

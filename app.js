@@ -73,7 +73,7 @@
   function imgTag(f, size, alt, extra) {
     const url = photoUrl(f, size);
     if (!url) return '<span class="noph">No photo</span>';
-    return '<img src="' + esc(url) + '" alt="' + esc(alt || '') + '" data-pid="' + esc(f.photoData ? '' : f.photoId) + '" data-size="' + size + '" referrerpolicy="no-referrer"' + (extra || '') + '>';
+    return '<img src="' + esc(url) + '" alt="' + esc(alt || '') + '" data-pid="' + esc(f.photoData ? '' : f.photoId) + '" data-size="' + size + '" referrerpolicy="no-referrer" decoding="async"' + (extra || '') + '>';
   }
 
   document.addEventListener('error', e => {
@@ -113,28 +113,32 @@
 
   // ---------- Backends ----------
 
+  // Every request to Google gives up after 90 seconds, so nothing waits forever.
+  // A network failure is marked so the caller can retry it.
+  async function fetchJSON(url, options) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 90000);
+    try {
+      const r = await fetch(url, Object.assign({ signal: ctrl.signal }, options));
+      return await r.json();
+    } catch (e) {
+      const err = new Error('No connection');
+      err.network = true;
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   const real = {
     async list() {
-      const r = await fetch(API + '?action=list', { cache: 'no-store' });
-      const j = await r.json();
+      const j = await fetchJSON(API + '?action=list', { cache: 'no-store' });
       if (!j.ok) throw new Error(j.error || 'Could not load the Vault.');
       return j.fabrics;
     },
     async call(body) {
-      // Give up after 90 seconds so a stuck request can be retried.
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 90000);
-      let j;
-      try {
-        const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ passcode: state.pass }, body)), signal: ctrl.signal });
-        j = await r.json();
-      } catch (e) {
-        const err = new Error('No connection');
-        err.network = true;
-        throw err;
-      } finally {
-        clearTimeout(timer);
-      }
+      // Sent as plain text so the browser makes a simple request that Google accepts.
+      const j = await fetchJSON(API, { method: 'POST', body: JSON.stringify(Object.assign({ passcode: state.pass }, body)) });
       if (!j.ok) throw new Error(j.error || 'That didn’t save. Try again.');
       return j;
     },
@@ -145,8 +149,7 @@
     importPhotos() { return this.call({ action: 'import' }); },
     async thumb(f) {
       if (!f.photoId) return '';
-      const r = await fetch(API + '?action=thumb&id=' + encodeURIComponent(f.photoId));
-      const j = await r.json();
+      const j = await fetchJSON(API + '?action=thumb&id=' + encodeURIComponent(f.photoId));
       return j.ok ? j.data : '';
     }
   };
@@ -477,7 +480,7 @@
       '</div>' +
       '<div class="sheet-body">' +
         '<div><div class="cid">' + esc(f.id) + ' · ' + esc(f.family) + '</div>' +
-        '<h2 class="sheet-title' + (f.name ? '' : ' unnamed') + '">' + esc(f.name || 'Unnamed fabric') + '</h2></div>' +
+        '<h2 id="detailTitle" class="sheet-title' + (f.name ? '' : ' unnamed') + '">' + esc(f.name || 'Unnamed fabric') + '</h2></div>' +
         yardsHTML(f) +
         '<dl class="facts">' +
           fact('Source', f.source) + fact('Fibre', f.fibre) + fact('Width', f.width) + fact('Stored', f.bin) +
@@ -508,7 +511,8 @@
   function afterChange() {
     cache();
     render();
-    if (el.detail.open) renderDetail();
+    // Don't redraw the open fabric while you're typing its yards, or your typing would be reset.
+    if (el.detail.open && document.activeElement !== $('#ydInput')) renderDetail();
   }
 
   function handleError(e) {
@@ -869,7 +873,9 @@
 
   // ---------- Start ----------
 
+  let lastRefresh = 0;
   async function refresh() {
+    lastRefresh = Date.now();
     try {
       const list = await backend.list();
       state.fabrics = list.map(normalize).filter(f => f.id);
@@ -889,4 +895,9 @@
   renderHeader();
   renderSaving();
   refresh().then(pumpQueue);
+
+  // Coming back to the Vault (for example after saving on another device) picks up the latest numbers.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - lastRefresh > 30000) refresh().then(pumpQueue);
+  });
 })();
