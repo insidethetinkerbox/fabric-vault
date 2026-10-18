@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fabric Vault</title>
+<meta name="description" content="The Tinkerbox fabric library: every fabric, filed by colour, with yards remaining.">
+<meta name="theme-color" content="#ffffff">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;900&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="label">The Tinkerbox · fabric library</div>
+      <h1>Fabric Vault</h1>
+    </div>
+    <div class="actions">
+      <button id="importBtn" class="btn" type="button" hidden>Import photos</button>
+      <button id="addBtn" class="btn primary" type="button" hidden>+ Add fabric</button>
+      <button id="lockBtn" class="btn" type="button"></button>
+    </div>
+  </header>
+
+  <p id="demoNote" class="note" hidden>Demo mode: these are sample fabrics and nothing is saved. The Edit mode passcode is <b>demo</b>. Connect your Google Sheet in <code>config.js</code> to use the real Vault.</p>
+
+  <section class="stats" id="stats" aria-label="Summary"></section>
+
+  <section class="filters" aria-label="Find fabric">
+    <label class="search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="sr">Search fabric</span>
+      <input id="search" type="search" placeholder="Search name, ID, shop, fibre, bin…" autocomplete="off">
+    </label>
+    <div class="chips" id="chips"></div>
+  </section>
+
+  <main id="library" aria-live="polite"></main>
+</div>
+
+<button id="fab" class="fab" type="button" hidden>+ Add fabric</button>
+
+<dialog id="detail" aria-label="Fabric details"></dialog>
+
+<dialog id="formDlg" aria-labelledby="formTitle">
+  <form id="fabricForm" class="sheet-body form" novalidate>
+    <div class="form-head">
+      <h2 id="formTitle">Add fabric</h2>
+      <button type="button" class="close" data-close aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="photo-pick">
+      <img id="photoPreview" alt="" hidden>
+      <label class="btn" for="f-photo">Take or choose photo</label>
+      <input id="f-photo" type="file" accept="image/*" class="sr">
+    </div>
+    <fieldset class="fams">
+      <legend>Colour family</legend>
+      <div id="famPick" class="fam-pick"></div>
+    </fieldset>
+    <div class="grid2">
+      <label><span>Name <span class="opt">(optional)</span></span><input id="f-name" autocomplete="off"></label>
+      <label>Yards remaining<input id="f-yards" type="number" inputmode="decimal" min="0" step="0.01"></label>
+      <label>Where you bought it<input id="f-source" list="sources" autocomplete="off"></label>
+      <label>Fibre / type<input id="f-fibre" list="fibres" autocomplete="off"></label>
+      <label>Width<input id="f-width" placeholder="e.g. 44 in" autocomplete="off"></label>
+      <label>Paid (S$)<input id="f-paid" type="number" inputmode="decimal" min="0" step="0.01"></label>
+      <label>Stored (bin / shelf)<input id="f-bin" autocomplete="off"></label>
+    </div>
+    <label>Notes<textarea id="f-notes" rows="2"></textarea></label>
+    <p id="formMsg" class="msg" role="alert"></p>
+    <div class="form-actions">
+      <button type="button" id="removeBtn" class="btn danger" hidden>Remove from Vault</button>
+      <button type="submit" id="saveBtn" class="btn primary big">Save</button>
+    </div>
+  </form>
+  <datalist id="sources"></datalist>
+  <datalist id="fibres"></datalist>
+</dialog>
+
+<dialog id="lockDlg" aria-labelledby="lockTitle">
+  <form id="lockForm" class="sheet-body form">
+    <div class="form-head">
+      <h2 id="lockTitle">Edit mode</h2>
+      <button type="button" class="close" data-close aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <p class="hint">Enter your passcode to add fabric and change yards. This device will remember it until you lock it again.</p>
+    <label>Passcode<input id="passInput" type="password" autocomplete="current-password" required></label>
+    <p id="lockMsg" class="msg" role="alert"></p>
+    <div class="form-actions"><button type="submit" class="btn primary big">Unlock</button></div>
+  </form>
+</dialog>
+
+<dialog id="confirmDlg" aria-labelledby="confirmText">
+  <form method="dialog" class="sheet-body form">
+    <p id="confirmText" class="confirm-text"></p>
+    <div class="form-actions">
+      <button value="no" class="btn">Cancel</button>
+      <button value="yes" id="confirmOk" class="btn primary big">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
