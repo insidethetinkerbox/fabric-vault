@@ -9,18 +9,27 @@
   const LOW = 0.5;            // yards at or below this count as running low
   const UNSORTED = 'Unsorted';
   const FAMILIES = [
-    { name: 'Reds', dot: '#c8102e' },
-    { name: 'Oranges', dot: '#ff7a1a' },
-    { name: 'Yellows', dot: '#ffcc00' },
-    { name: 'Greens', dot: '#5e8c4a' },
-    { name: 'Blues', dot: '#2f6fb5' },
-    { name: 'Purples', dot: '#7a4fa0' },
-    { name: 'Pinks', dot: '#f29bb7' },
-    { name: 'Browns', dot: '#8a5a3b' },
-    { name: 'Neutrals', dot: '#e6dccb' },
-    { name: 'Black & White', dot: 'linear-gradient(135deg, #1d1d1d 50%, #ffffff 50%)' }
+    { name: 'Red', dot: '#c8102e' },
+    { name: 'Orange', dot: '#ff7a1a' },
+    { name: 'Yellow', dot: '#ffcc00' },
+    { name: 'Green', dot: '#5e8c4a' },
+    { name: 'Blue', dot: '#2f6fb5' },
+    { name: 'Navy', dot: '#14283f' },
+    { name: 'Purple', dot: '#7a4fa0' },
+    { name: 'Pink', dot: '#f29bb7' },
+    { name: 'Brown', dot: '#8a5a3b' },
+    { name: 'Neutral', dot: '#e6dccb' },
+    { name: 'Black', dot: '#1d1d1d' },
+    { name: 'White', dot: '#ffffff' }
   ];
   const FAMILY_NAMES = FAMILIES.map(f => f.name);
+  // Older names ("Pinks", "Black & White") still saved in the Sheet are read as today's names.
+  const fixFamily = name => {
+    const n = String(name || '');
+    if (FAMILY_NAMES.includes(n)) return n;
+    if (/s$/.test(n) && FAMILY_NAMES.includes(n.slice(0, -1))) return n.slice(0, -1);
+    return UNSORTED;
+  };
   const UNSORTED_DOT = 'conic-gradient(#c8102e, #ffcc00, #5e8c4a, #2f6fb5, #7a4fa0, #c8102e)';
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -44,7 +53,7 @@
     show: 'all',       // all | low | out | tocount
     q: '',
     openId: null,
-    suggestions: store.get('fv-suggest') || {}
+    suggestions: store.get('fv-suggest-v2') || {}
   };
 
   function status(f) {
@@ -87,7 +96,7 @@
     return {
       id: String(f.id || ''),
       name: String(f.name || ''),
-      family: FAMILY_NAMES.includes(f.family) ? f.family : UNSORTED,
+      family: fixFamily(f.family),
       source: String(f.source || ''),
       fibre: String(f.fibre || ''),
       width: String(f.width || ''),
@@ -144,24 +153,24 @@
     imported: false,
     seed() {
       const rows = [
-        ['FV-002', 'Mid-wash denim', 'Blues', 'Fabric shop', 'Denim', '60 in', 8, 12, 'D1', '', '#3a5f8f'],
-        ['FV-003', 'Cherry linen', 'Reds', 'Market stall', 'Linen', '54 in', 4.5, 9.5, 'A1', '', '#b3122b'],
-        ['FV-005', 'Mustard corduroy', 'Yellows', 'Fabric shop', 'Corduroy', '57 in', 6, 14, 'B3', '', '#d9a400'],
-        ['FV-008', 'Marigold voile', 'Oranges', 'Fabric shop', 'Voile', '58 in', 3.25, 8, 'B1', '', '#f28a1e'],
-        ['FV-011', 'Sage double gauze', 'Greens', 'Online', 'Double gauze', '52 in', 2.5, 16, 'C1', '', '#9bb08a'],
-        ['FV-014', '', 'Blues', 'Charity shop', 'Chambray', '44 in', 1, 3, 'D1', '', '#7f9fc4'],
-        ['FV-017', '', 'Reds', 'Charity shop', 'Cotton', '44 in', 0.4, 3, 'A1', 'Slightly faded selvedge', '#d63a3a'],
-        ['FV-019', '', 'Yellows', 'Gift', 'Cotton', '44 in', 0.25, '', 'B3', '', '#ffd84d'],
-        ['FV-022', '', 'Oranges', 'Market stall', 'Cotton print', '44 in', 1.75, 6, 'B1', 'Orange florals on cream', '#e9762b', true],
-        ['FV-027', '', 'Greens', 'Market stall', 'Cotton print', '44 in', 5, 7, 'C1', 'Print on green ground', '#3f7a4f', true],
-        ['FV-030', 'Rust gingham', 'Oranges', 'Online', 'Cotton', '44 in', 0, 5, 'B2', '', '#c4561f'],
-        ['FV-033', 'Olive twill', 'Greens', 'Fabric shop', 'Twill', '58 in', 0.5, 11, 'C2', '', '#6b6b2e'],
-        ['FV-036', 'Navy ditsy', 'Blues', 'Online', 'Cotton print', '44 in', 3, 9, 'D2', '', '#1f3558', true],
-        ['FV-041', 'Brick canvas', 'Reds', 'Online', 'Canvas', '60 in', 2, 10, 'A2', '', '#9c3b2c'],
-        ['FV-044', 'Oat linen', 'Neutrals', 'Fabric shop', 'Linen', '55 in', 3.5, 13, 'E1', '', '#d9cdb6'],
-        ['FV-048', 'Sky poplin', 'Blues', 'Fabric shop', 'Poplin', '58 in', 4.25, 7.5, 'D2', '', '#8fc3f0'],
-        ['FV-050', 'Plum velvet', 'Purples', 'Online', 'Velvet', '54 in', 1.5, 18, 'E2', '', '#5a2a5e'],
-        ['FV-052', '', 'Reds', 'Swap meet', 'Cotton print', '44 in', 1.25, '', 'A2', 'Red ground, small white dots', '#c8263a', true]
+        ['FV-002', 'Mid-wash denim', 'Blue', 'Fabric shop', 'Denim', '60 in', 8, 12, 'D1', '', '#3a5f8f'],
+        ['FV-003', 'Cherry linen', 'Red', 'Market stall', 'Linen', '54 in', 4.5, 9.5, 'A1', '', '#b3122b'],
+        ['FV-005', 'Mustard corduroy', 'Yellow', 'Fabric shop', 'Corduroy', '57 in', 6, 14, 'B3', '', '#d9a400'],
+        ['FV-008', 'Marigold voile', 'Orange', 'Fabric shop', 'Voile', '58 in', 3.25, 8, 'B1', '', '#f28a1e'],
+        ['FV-011', 'Sage double gauze', 'Green', 'Online', 'Double gauze', '52 in', 2.5, 16, 'C1', '', '#9bb08a'],
+        ['FV-014', '', 'Blue', 'Charity shop', 'Chambray', '44 in', 1, 3, 'D1', '', '#7f9fc4'],
+        ['FV-017', '', 'Red', 'Charity shop', 'Cotton', '44 in', 0.4, 3, 'A1', 'Slightly faded selvedge', '#d63a3a'],
+        ['FV-019', '', 'Yellow', 'Gift', 'Cotton', '44 in', 0.25, '', 'B3', '', '#ffd84d'],
+        ['FV-022', '', 'Orange', 'Market stall', 'Cotton print', '44 in', 1.75, 6, 'B1', 'Orange florals on cream', '#e9762b', true],
+        ['FV-027', '', 'Green', 'Market stall', 'Cotton print', '44 in', 5, 7, 'C1', 'Print on green ground', '#3f7a4f', true],
+        ['FV-030', 'Rust gingham', 'Orange', 'Online', 'Cotton', '44 in', 0, 5, 'B2', '', '#c4561f'],
+        ['FV-033', 'Olive twill', 'Green', 'Fabric shop', 'Twill', '58 in', 0.5, 11, 'C2', '', '#6b6b2e'],
+        ['FV-036', 'Navy ditsy', 'Blue', 'Online', 'Cotton print', '44 in', 3, 9, 'D2', '', '#1f3558', true],
+        ['FV-041', 'Brick canvas', 'Red', 'Online', 'Canvas', '60 in', 2, 10, 'A2', '', '#9c3b2c'],
+        ['FV-044', 'Oat linen', 'Neutral', 'Fabric shop', 'Linen', '55 in', 3.5, 13, 'E1', '', '#d9cdb6'],
+        ['FV-048', 'Sky poplin', 'Blue', 'Fabric shop', 'Poplin', '58 in', 4.25, 7.5, 'D2', '', '#8fc3f0'],
+        ['FV-050', 'Plum velvet', 'Purple', 'Online', 'Velvet', '54 in', 1.5, 18, 'E2', '', '#5a2a5e'],
+        ['FV-052', '', 'Red', 'Swap meet', 'Cotton print', '44 in', 1.25, '', 'A2', 'Red ground, small white dots', '#c8263a', true]
       ];
       this.data = rows.map(r => ({ id: r[0], name: r[1], family: r[2], source: r[3], fibre: r[4], width: r[5], yards: r[6], paid: r[7], bin: r[8], notes: r[9], photoData: swatch(r[10], r[11]) }));
     },
@@ -350,7 +359,7 @@
     const fam = await dominantFamily(src);
     if (!fam) return;
     state.suggestions[f.id] = fam;
-    store.set('fv-suggest', state.suggestions);
+    store.set('fv-suggest-v2', state.suggestions);
     const box = document.querySelector('[data-sorter="' + CSS.escape(f.id) + '"]');
     if (box) {
       box.querySelector('.sorter-label').textContent = 'Suggested: ' + fam;
@@ -394,17 +403,18 @@
       else h = 60 * ((r - g) / d + 4);
     }
     if (h < 0) h += 360;
-    if (l < 0.13 || l > 0.94) return 'Black & White';
-    if (s < 0.15) return l > 0.82 ? 'Black & White' : 'Neutrals';
-    if (h >= 18 && h < 50 && l < 0.42) return 'Browns';
-    if (h >= 20 && h < 60 && s < 0.45 && l > 0.62) return 'Neutrals';
-    if (h >= 345 || h < 12) return l > 0.72 ? 'Pinks' : 'Reds';
-    if (h < 42) return 'Oranges';
-    if (h < 68) return 'Yellows';
-    if (h < 165) return 'Greens';
-    if (h < 255) return 'Blues';
-    if (h < 290) return 'Purples';
-    return l > 0.55 || h > 320 ? 'Pinks' : 'Purples';
+    if (l < 0.13) return 'Black';
+    if (l > 0.94) return 'White';
+    if (s < 0.15) return l > 0.82 ? 'White' : l < 0.25 ? 'Black' : 'Neutral';
+    if (h >= 18 && h < 50 && l < 0.42) return 'Brown';
+    if (h >= 20 && h < 60 && s < 0.45 && l > 0.62) return 'Neutral';
+    if (h >= 345 || h < 12) return l > 0.72 ? 'Pink' : 'Red';
+    if (h < 42) return 'Orange';
+    if (h < 68) return 'Yellow';
+    if (h < 165) return 'Green';
+    if (h < 255) return h >= 190 && l < 0.3 ? 'Navy' : 'Blue';
+    if (h < 290) return 'Purple';
+    return l > 0.55 || h > 320 ? 'Pink' : 'Purple';
   }
 
   // ---------- Fabric details ----------

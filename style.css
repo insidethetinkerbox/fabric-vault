@@ -124,7 +124,7 @@ button.tile:hover { background: var(--cream); }
 /* One-tap colour sorting for imported photos */
 .sorter { border-top: 1.5px solid var(--grey); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; background: var(--cream); }
 .sorter-label { font-size: 12px; font-weight: 600; }
-.dots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.dots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .dot { aspect-ratio: 1; min-height: 28px; border-radius: 50%; border: 1.5px solid rgba(20, 40, 63, .3); cursor: pointer; padding: 0; }
 .dot:hover { transform: scale(1.08); }
 .dot.suggested { box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--navy); }
