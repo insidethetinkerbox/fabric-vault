@@ -187,9 +187,14 @@ dialog::backdrop { background: rgba(20, 40, 63, .55); }
 /* Floating add button on phones */
 .fab { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); min-height: 54px; padding: 0 22px; border-radius: 99px; border: 2px solid var(--navy); background: var(--yellow); color: var(--navy); font-weight: 900; font-size: 15px; text-transform: uppercase; letter-spacing: .04em; box-shadow: 0 4px 0 var(--navy); cursor: pointer; z-index: 5; }
 
-.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); max-width: calc(100% - 32px); background: var(--navy); color: var(--cream); padding: 12px 18px; border-radius: 10px; font-weight: 600; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); top: auto; right: auto; margin: 0; border: 0; transform: translateX(-50%) translateY(20px); max-width: calc(100% - 32px); background: var(--navy); color: var(--cream); padding: 12px 18px; border-radius: 10px; font-weight: 600; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.bad { background: var(--orange-ink); color: #fff; }
+
+/* Background-saving status, top right */
+.saving { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: 12px; bottom: auto; left: auto; margin: 0; border: 0; z-index: 15; background: var(--navy); color: var(--cream); padding: 8px 14px; border-radius: 99px; font-size: 13px; font-weight: 600; box-shadow: 0 2px 0 rgba(20, 40, 63, .25); }
+.saving.waiting { background: var(--orange-ink); color: #fff; }
+.saving.done { background: #fff; color: var(--navy); border: 1.5px solid var(--navy); }
 
 @media (min-width: 721px) { .fab { display: none !important; } }
 @media (max-width: 720px) {

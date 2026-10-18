@@ -121,8 +121,20 @@
       return j.fabrics;
     },
     async call(body) {
-      const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ passcode: state.pass }, body)) });
-      const j = await r.json();
+      // Give up after 90 seconds so a stuck request can be retried.
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 90000);
+      let j;
+      try {
+        const r = await fetch(API, { method: 'POST', body: JSON.stringify(Object.assign({ passcode: state.pass }, body)), signal: ctrl.signal });
+        j = await r.json();
+      } catch (e) {
+        const err = new Error('No connection');
+        err.network = true;
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
       if (!j.ok) throw new Error(j.error || 'That didn’t save. Try again.');
       return j;
     },
@@ -445,9 +457,7 @@
         '<button type="button" class="step" data-step="0.25" aria-label="Add a quarter yard">+</button>' +
       '</div>' +
       '<p class="warn" id="ydWarn">' + esc(warnText(f.yards)) + '</p>' +
-      (state.saving === f.id
-        ? '<button class="btn primary big" type="submit" disabled>Saving…</button>'
-        : '<button class="btn primary big" type="submit">Save yards</button>') +
+      '<button class="btn primary big" type="submit">Save yards</button>' +
     '</form>';
   }
 
@@ -487,19 +497,13 @@
   el.detail.addEventListener('submit', async e => {
     if (e.target.id !== 'yardsForm') return;
     e.preventDefault();
-    const btn = e.target.querySelector('[type="submit"]');
-    if (btn.disabled) return;
     const id = state.openId;
-    state.saving = id;
-    const ok = await saveFabric(id, { yards: toYards($('#ydInput').value) });
-    state.saving = null;
-    if (el.detail.open) renderDetail();
-    if (ok) toast('Saved: ' + id + ' has ' + fmt(byId(id).yards) + ' yd left');
+    if (saveFabric(id, { yards: toYards($('#ydInput').value) })) toast(id + ': ' + fmt(byId(id).yards) + ' yd left');
   });
 
   // ---------- Saving ----------
 
-  function cache() { if (!DEMO) store.set('fv-cache', state.fabrics); }
+  function cache() { if (!DEMO) store.set('fv-cache', state.fabrics.map(f => ({ ...f, photoData: '' }))); }
 
   function afterChange() {
     cache();
@@ -510,26 +514,97 @@
   function handleError(e) {
     const msg = (e && e.message) || 'Something went wrong. Check your connection and try again.';
     if (/passcode/i.test(msg)) lock();
-    toast(/Failed to fetch|NetworkError|Load failed/i.test(msg) ? 'No connection. Nothing was saved. Try again when you’re online.' : msg, true);
+    toast(e && e.network ? 'Couldn’t reach Google. Nothing was saved. Try again in a moment.' : msg, true);
   }
 
-  async function saveFabric(id, patch, photo) {
+  // Changes show straight away and are sent to Google in the background, one at a time.
+  // The waiting list is kept on this device, so closing the page doesn't lose a change.
+  function saveFabric(id, patch, photo) {
     const f = byId(id);
     if (!f) return false;
-    const before = { ...f };
     Object.assign(f, patch);
+    if (photo) f.photoData = photo;
     afterChange();
+    enqueue(id, patch, photo);
+    return true;
+  }
+
+  const QKEY = 'fv-queue';
+  const RETRY_SECONDS = [3, 10, 30, 60];
+  let saveQueue = DEMO ? [] : (store.get(QKEY) || []);
+  let sending = null, retryTimer = null, failures = 0, lastShownCount = 0;
+  const savingEl = $('#saving');
+
+  function persistQueue() { if (!DEMO) store.set(QKEY, saveQueue); }
+
+  function enqueue(id, patch, photo) {
+    const last = saveQueue[saveQueue.length - 1];
+    if (last && last !== sending && last.id === id && !photo && !last.photo) Object.assign(last.patch, patch);
+    else saveQueue.push({ id, patch: { ...patch }, photo: photo || '' });
+    persistQueue();
+    renderSaving();
+    pumpQueue();
+  }
+
+  async function pumpQueue() {
+    if (sending || retryTimer || !saveQueue.length || !state.edit) return;
+    const job = sending = saveQueue[0];
     try {
-      const r = await backend.update(id, patch, photo);
-      Object.assign(f, normalize(r.fabric));
-      afterChange();
-      return true;
+      const r = await backend.update(job.id, job.patch, job.photo);
+      saveQueue.shift();
+      failures = 0;
+      const f = byId(job.id);
+      // Only take Google's copy when nothing newer for this fabric is still waiting.
+      if (f && !saveQueue.some(j => j.id === job.id)) { Object.assign(f, normalize(r.fabric)); afterChange(); }
     } catch (e) {
-      Object.assign(f, before);
-      afterChange();
-      handleError(e);
-      return false;
+      const msg = (e && e.message) || '';
+      if (e && e.network || !/passcode|isn’t in the Vault/i.test(msg)) {
+        // Connection trouble or Google hiccup: wait, then try again.
+        const wait = RETRY_SECONDS[Math.min(failures, RETRY_SECONDS.length - 1)];
+        failures++;
+        retryTimer = setTimeout(() => { retryTimer = null; pumpQueue(); }, wait * 1000);
+      } else if (/isn’t in the Vault/i.test(msg)) {
+        saveQueue.shift();
+        toast(job.id + ' isn’t in the Vault any more, so that change was skipped.', true);
+      } else {
+        lock();
+        toast(msg + ' Unlock Edit mode to finish saving.', true);
+      }
+    } finally {
+      sending = null;
+      persistQueue();
+      renderSaving();
+      pumpQueue();
     }
+  }
+
+  let savedTimer;
+  function renderSaving() {
+    const n = saveQueue.length;
+    clearTimeout(savedTimer);
+    if (n) {
+      savingEl.className = 'saving' + (retryTimer || !state.edit ? ' waiting' : '');
+      savingEl.textContent = !state.edit ? n + ' change' + (n === 1 ? '' : 's') + ' not sent · unlock to save'
+        : retryTimer ? 'Waiting to save ' + n + ' · retrying'
+        : 'Saving ' + n + '…';
+      showTop(savingEl);
+    } else if (lastShownCount) {
+      savingEl.className = 'saving done';
+      savingEl.textContent = 'All saved ✓';
+      showTop(savingEl);
+      savedTimer = setTimeout(() => { hideTop(savingEl); }, 2500);
+    } else {
+      hideTop(savingEl);
+    }
+    lastShownCount = n;
+  }
+
+  // Warn before leaving while changes are still on their way.
+  window.addEventListener('beforeunload', e => { if (saveQueue.length) { e.preventDefault(); e.returnValue = ''; } });
+
+  // Shows changes still waiting to send on top of what Google returned.
+  function applyPending() {
+    saveQueue.forEach(j => { const f = byId(j.id); if (f) Object.assign(f, j.patch); });
   }
 
   // ---------- Add / edit form ----------
@@ -653,6 +728,9 @@
     if (!f || !(await ask('Remove ' + f.id + ' from the Vault? Its photo stays in your Google Drive.', 'Remove', true))) return;
     try {
       await backend.remove(f.id);
+      saveQueue = saveQueue.filter(j => j === sending || j.id !== f.id);
+      persistQueue();
+      renderSaving();
       state.fabrics = state.fabrics.filter(x => x.id !== f.id);
       el.formDlg.close();
       if (el.detail.open) el.detail.close();
@@ -668,6 +746,7 @@
     state.pass = '';
     store.del('fv-pass');
     render();
+    renderSaving();
     if (el.detail.open) renderDetail();
   }
 
@@ -693,8 +772,10 @@
       render();
       if (el.detail.open) renderDetail();
       toast('Edit mode on');
+      renderSaving();
+      pumpQueue();
     } catch (err) {
-      $('#lockMsg').textContent = /Failed to fetch|NetworkError|Load failed/i.test(err.message) ? 'No connection. Try again when you’re online.' : err.message;
+      $('#lockMsg').textContent = err.network ? 'Couldn’t reach Google. Try again in a moment.' : err.message;
     } finally {
       btn.disabled = false;
     }
@@ -730,7 +811,7 @@
     if (t.dataset.open) openDetail(t.dataset.open);
     else if (t.dataset.setfam) {
       const id = t.dataset.id, fam = t.dataset.setfam;
-      saveFabric(id, { family: fam }).then(ok => { if (ok) toast(id + ' filed under ' + fam); });
+      if (saveFabric(id, { family: fam })) toast(id + ' filed under ' + fam);
     } else if (t.dataset.family) { state.family = t.dataset.family; render(); }
     else if (t.dataset.show) { state.show = state.show === t.dataset.show ? 'all' : t.dataset.show; if (t.dataset.show === 'all') state.family = 'all'; render(); }
     else if (t.hasAttribute('data-close')) t.closest('dialog').close();
@@ -761,10 +842,26 @@
     return new Promise(resolve => d.addEventListener('close', () => resolve(d.returnValue === 'yes'), { once: true }));
   }
 
+  // Puts the saving badge and messages in front of any open fabric window.
+  const canPop = 'showPopover' in HTMLElement.prototype;
+  function showTop(node) {
+    node.hidden = false;
+    if (!canPop) return;
+    try {
+      if (node.matches(':popover-open')) node.hidePopover();
+      node.showPopover();
+    } catch (e) { /* older browser: shown without lifting */ }
+  }
+  function hideTop(node) {
+    if (canPop) { try { node.hidePopover(); } catch (e) { /* not open */ } }
+    node.hidden = true;
+  }
+
   let toastTimer;
   function toast(msg, bad) {
     el.toast.textContent = msg;
     el.toast.classList.toggle('bad', !!bad);
+    showTop(el.toast);
     el.toast.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.toast.classList.remove('show'), bad ? 6000 : 3200);
@@ -776,6 +873,7 @@
     try {
       const list = await backend.list();
       state.fabrics = list.map(normalize).filter(f => f.id);
+      applyPending();
       afterChange();
     } catch (e) {
       if (!state.fabrics.length) el.library.innerHTML = '<div class="empty">The Vault couldn’t load. Check your connection and reload the page.</div>';
@@ -789,5 +887,6 @@
   if (!state.fabrics.length) el.library.innerHTML = '<div class="empty">Opening the Vault… The first visit of the day can take up to 15 seconds.</div>';
   else render();
   renderHeader();
-  refresh();
+  renderSaving();
+  refresh().then(pumpQueue);
 })();
