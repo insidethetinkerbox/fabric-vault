@@ -479,14 +479,14 @@
         '<button type="button" class="close" data-close aria-label="Close">' + CLOSE_ICON + '</button>' +
       '</div>' +
       '<div class="sheet-body">' +
-        '<div><div class="cid">' + esc(f.id) + ' · ' + esc(f.family) + '</div>' +
+        '<div class="detail-head"><div><div class="cid">' + esc(f.id) + ' · ' + esc(f.family) + '</div>' +
         '<h2 id="detailTitle" class="sheet-title' + (f.name ? '' : ' unnamed') + '">' + esc(f.name || 'Unnamed fabric') + '</h2></div>' +
+        (state.edit ? '<button type="button" class="btn" data-edit="' + esc(f.id) + '">Edit details</button>' : '') + '</div>' +
         yardsHTML(f) +
         '<dl class="facts">' +
           fact('Source', f.source) + fact('Fibre', f.fibre) + fact('Width', f.width) + fact('Stored', f.bin) +
           fact('Paid', f.paid === '' ? '' : 'S$' + f.paid.toFixed(2)) + fact('Notes', f.notes, true) +
         '</dl>' +
-        (state.edit ? '<div><button type="button" class="btn" data-edit="' + esc(f.id) + '">Edit details</button></div>' : '') +
       '</div>';
   }
 

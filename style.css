@@ -139,6 +139,8 @@ dialog::backdrop { background: rgba(20, 40, 63, .55); }
 .close { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--navy); background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: 0 0 auto; }
 .sheet-photo .close { position: absolute; right: 12px; top: 12px; }
 .sheet-body { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.detail-head .btn { flex: 0 0 auto; }
 .sheet-title { margin: 2px 0 0; font-weight: 900; font-size: 26px; text-transform: uppercase; line-height: 1.1; overflow-wrap: anywhere; }
 
 .yards { background: #fff; border: 1.5px solid var(--navy); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -196,7 +198,15 @@ dialog::backdrop { background: rgba(20, 40, 63, .55); }
 .saving.waiting { background: var(--orange-ink); color: #fff; }
 .saving.done { background: #fff; color: var(--navy); border: 1.5px solid var(--navy); }
 
-@media (min-width: 721px) { .fab { display: none !important; } }
+@media (min-width: 721px) {
+  .fab { display: none !important; }
+  /* Laptop and desktop: photo on the left, details on the right, so the whole fabric fits on screen. */
+  #detail { width: min(960px, calc(100% - 48px)); max-height: calc(100dvh - 48px); overflow: hidden; }
+  #detail[open] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  #detail .sheet-photo { aspect-ratio: auto; min-height: 100%; }
+  #detail .sheet-photo img { position: absolute; inset: 0; }
+  #detail .sheet-body { overflow-y: auto; max-height: calc(100dvh - 52px); }
+}
 @media (max-width: 720px) {
   .wrap { padding-top: 22px; gap: 18px; }
   .top .actions #addBtn { display: none !important; }
