@@ -53,6 +53,7 @@
     show: 'all',       // all | low | out | tocount
     q: '',
     openId: null,
+    pickOpen: false,   // colour dropdown open
     suggestions: store.get('fv-suggest-v2') || {}
   };
 
@@ -231,7 +232,7 @@
   // ---------- Rendering ----------
 
   const el = {
-    stats: $('#stats'), chips: $('#chips'), library: $('#library'), search: $('#search'),
+    stats: $('#stats'), library: $('#library'), search: $('#search'),
     lockBtn: $('#lockBtn'), addBtn: $('#addBtn'), importBtn: $('#importBtn'), fab: $('#fab'),
     detail: $('#detail'), formDlg: $('#formDlg'), form: $('#fabricForm'), lockDlg: $('#lockDlg'),
     toast: $('#toast'), demoNote: $('#demoNote')
@@ -244,7 +245,6 @@
   function render() {
     renderHeader();
     renderStats();
-    renderChips();
     renderLibrary();
   }
 
@@ -272,18 +272,42 @@
       tile('Yards on hand', total, '') +
       tile('Running low · 0.5 yd or less', count('low'), 'low', 'low') +
       tile('Used up', count('out'), 'out', 'out') +
-      (toCount ? tile('Yards to measure', toCount, 'tocount', 'tocount') : '');
+      (toCount ? tile('Yards to measure', toCount, 'tocount', 'tocount') : '') +
+      colourPicker();
   }
 
-  function renderChips() {
+  // The colour filter: a dropdown with a coloured circle for every colour, in the summary row.
+  function colourPicker() {
     const counts = {};
     state.fabrics.forEach(f => { counts[f.family] = (counts[f.family] || 0) + 1; });
-    const fams = (counts[UNSORTED] ? [{ name: UNSORTED, dot: UNSORTED_DOT }] : []).concat(FAMILIES);
+    const fams = (counts[UNSORTED] ? [UNSORTED] : []).concat(FAMILY_NAMES);
     if (state.family === UNSORTED && !counts[UNSORTED]) state.family = 'all';
-    el.chips.innerHTML =
-      '<button type="button" class="chip all" data-family="all" aria-pressed="' + (state.family === 'all') + '">All colours</button>' +
-      fams.map(f => '<button type="button" class="chip" data-family="' + esc(f.name) + '" aria-pressed="' + (state.family === f.name) + '">' +
-        '<span class="swatch-dot" style="background:' + f.dot + '"></span>' + esc(f.name) + ' <span class="c">' + (counts[f.name] || 0) + '</span></button>').join('');
+    const dot = name => '<span class="swatch-dot" style="background:' + (name === 'all' ? UNSORTED_DOT : dotFor(name)) + '"></span>';
+    const item = (value, label, n) =>
+      '<button type="button" class="pick-item" role="menuitemradio" aria-checked="' + (state.family === value) + '" data-family="' + esc(value) + '">' +
+        dot(value) + '<span>' + esc(label) + '</span>' + (n == null ? '' : '<span class="c">' + n + '</span>') +
+      '</button>';
+    const current = state.family === 'all' ? 'All colours' : state.family;
+    return '<div class="tile pick">' +
+      '<span class="t" id="pickLabel">Colour</span>' +
+      '<button type="button" class="pick-btn" data-togglepick aria-haspopup="menu" aria-expanded="' + state.pickOpen + '" aria-labelledby="pickLabel pickValue">' +
+        dot(state.family) + '<span id="pickValue">' + esc(current) + '</span>' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
+      '</button>' +
+      (state.pickOpen
+        ? '<div class="pick-menu" role="menu" aria-label="Show colour">' +
+            item('all', 'All colours', state.fabrics.length) +
+            fams.map(name => item(name, name, counts[name] || 0)).join('') +
+          '</div>'
+        : '') +
+    '</div>';
+  }
+
+  function setPickOpen(open) {
+    state.pickOpen = open;
+    renderStats();
+    const target = open ? $('.pick-item[aria-checked="true"]') || $('.pick-item') : $('.pick-btn');
+    if (target) target.focus();
   }
 
   function matches(f) {
@@ -330,14 +354,12 @@
     const badge = st === 'low' ? '<span class="badge low">Low</span>'
       : st === 'out' ? '<span class="badge out">Used up</span>'
       : st === 'tocount' ? '<span class="badge tocount">Measure</span>' : '';
-    const meta = [f.source, f.fibre].filter(Boolean).join(' · ');
+    // Cards show just the swatch, its name and the yards left; everything else is one tap away.
     return '<article class="card ' + st + '">' +
       '<button type="button" class="card-main" data-open="' + esc(f.id) + '">' +
         '<span class="ph">' + imgTag(f, 800, '', ' loading="lazy"') + badge + '</span>' +
         '<span class="card-body">' +
-          '<span class="cid">' + esc(f.id) + (f.bin ? ' · ' + esc(f.bin) : '') + '</span>' +
           '<span class="cname' + (f.name ? '' : ' unnamed') + '">' + esc(f.name || 'Unnamed fabric') + '</span>' +
-          (meta ? '<span class="cmeta">' + esc(meta) + '</span>' : '') +
           '<span class="cyd"><b>' + fmt(f.yards) + '</b> yd left</span>' +
         '</span>' +
       '</button>' +
@@ -826,13 +848,16 @@
   // ---------- Clicks, filters, toast ----------
 
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-open],[data-setfam],[data-family],[data-show],[data-close],[data-edit],[data-step]');
+    // A click anywhere outside the colour dropdown closes it.
+    if (state.pickOpen && !e.target.closest('.pick')) { state.pickOpen = false; renderStats(); }
+    const t = e.target.closest('[data-open],[data-setfam],[data-family],[data-show],[data-close],[data-edit],[data-step],[data-togglepick]');
     if (!t) return;
-    if (t.dataset.open) openDetail(t.dataset.open);
+    if (t.hasAttribute('data-togglepick')) setPickOpen(!state.pickOpen);
+    else if (t.dataset.open) openDetail(t.dataset.open);
     else if (t.dataset.setfam) {
       const id = t.dataset.id, fam = t.dataset.setfam;
       if (saveFabric(id, { family: fam })) toast(id + ' filed under ' + fam);
-    } else if (t.dataset.family) { state.family = t.dataset.family; render(); }
+    } else if (t.dataset.family) { state.family = t.dataset.family; state.pickOpen = false; render(); $('.pick-btn').focus(); }
     else if (t.dataset.show) { state.show = state.show === t.dataset.show ? 'all' : t.dataset.show; if (t.dataset.show === 'all') state.family = 'all'; render(); }
     else if (t.hasAttribute('data-close')) t.closest('dialog').close();
     else if (t.dataset.edit) openForm('edit', t.dataset.edit);
@@ -849,6 +874,16 @@
 
   el.addBtn.addEventListener('click', () => openForm('add'));
   el.fab.addEventListener('click', () => openForm('add'));
+  // Keyboard for the colour dropdown: Escape closes it, arrow keys move between colours.
+  document.addEventListener('keydown', e => {
+    if (!state.pickOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); setPickOpen(false); return; }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const items = [...document.querySelectorAll('.pick-item')];
+    const i = items.indexOf(document.activeElement);
+    const next = items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
+    if (next) { e.preventDefault(); next.focus(); }
+  });
   el.search.addEventListener('input', () => { state.q = el.search.value.trim().toLowerCase(); renderLibrary(); });
 
   // The Vault's own "Are you sure?" box (some browsers block the built-in one).
