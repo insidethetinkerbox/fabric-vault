@@ -200,12 +200,26 @@ dialog::backdrop { background: rgba(20, 40, 63, .55); }
 
 @media (min-width: 721px) {
   .fab { display: none !important; }
-  /* Laptop and desktop: photo on the left, details on the right, so the whole fabric fits on screen. */
-  #detail { width: min(960px, calc(100% - 48px)); max-height: calc(100dvh - 48px); overflow: hidden; }
-  #detail[open] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  #detail .sheet-photo { aspect-ratio: auto; min-height: 100%; }
-  #detail .sheet-photo img { position: absolute; inset: 0; }
-  #detail .sheet-body { overflow-y: auto; max-height: calc(100dvh - 52px); }
+  /* Laptop and desktop: a compact fabric window that fits on a MacBook Air screen without scrolling. */
+  /* A slim portrait card. Its width follows the window height, so the 4:3 photo is never squashed
+     and the details below it still fit on screen. */
+  #detail { width: clamp(340px, calc((100dvh - 360px) * 4 / 3), 440px); max-height: calc(100dvh - 24px); }
+  #detail .sheet-photo { aspect-ratio: 4 / 3; }
+  #detail .sheet-body { padding: 14px 18px 16px; gap: 10px; }
+  #detail .sheet-title { font-size: 22px; }
+  #detail .yards { padding: 10px 12px; gap: 6px; }
+  /* Yards and the Save button share one row. */
+  #detail form.yards { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center; }
+  #detail form.yards > label { grid-column: 1 / -1; grid-row: 1; }
+  #detail form.yards .stepper { grid-column: 1; grid-row: 2; }
+  #detail form.yards .btn.big { grid-column: 2; grid-row: 2; min-height: 44px; padding: 0 18px; }
+  #detail form.yards .warn { grid-column: 1 / -1; grid-row: 3; }
+  #detail .step { width: 44px; height: 44px; font-size: 20px; }
+  #detail .stepper input { height: 44px; font-size: 24px; }
+  #detail .yards .big-n { font-size: 32px; }
+  #detail .warn:empty { display: none; }
+  #detail .facts { padding: 10px 12px; gap: 8px 12px; }
+  #detail form.yards .btn.big { padding: 0 14px; }
 }
 @media (max-width: 720px) {
   .wrap { padding-top: 22px; gap: 18px; }
