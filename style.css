@@ -24,13 +24,29 @@ body {
   line-height: 1.45;
   color: var(--navy);
   background-color: var(--paper);
-  background-image:
+  background-image: var(--grid);
+  background-size: var(--grid-size);
+  background-attachment: fixed;
+}
+:root {
+  --grid:
     linear-gradient(var(--line-major) 1px, transparent 1px),
     linear-gradient(90deg, var(--line-major) 1px, transparent 1px),
     linear-gradient(var(--line-minor) 1px, transparent 1px),
     linear-gradient(90deg, var(--line-minor) 1px, transparent 1px);
-  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
-  background-attachment: fixed;
+  --grid-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+}
+
+/* The top section: title, summary row and search */
+.topbar { display: flex; flex-direction: column; gap: 20px; }
+@media (min-width: 721px) {
+  /* Stays put while the swatches scroll underneath. Same graph paper behind it, lined up with the page. */
+  .topbar {
+    position: sticky; top: 0; z-index: 6;
+    margin: -20px -16px 0; padding: 20px 16px 16px;
+    background-color: var(--paper); background-image: var(--grid); background-size: var(--grid-size); background-attachment: fixed;
+    box-shadow: 0 12px 12px -12px rgba(20, 40, 63, .35);
+  }
 }
 img { max-width: 100%; display: block; }
 button, input, textarea, select { font: inherit; color: inherit; }
