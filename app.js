@@ -132,6 +132,15 @@
 
   const real = {
     async list() {
+      // With the passcode, ask for the full list including prices; visitors get the list without them.
+      if (state.edit && state.pass) {
+        try {
+          return (await this.call({ action: 'list' })).fabrics;
+        } catch (e) {
+          if (e.network) throw e;
+          // Wrong passcode or an older script: fall back to the public list below.
+        }
+      }
       const j = await fetchJSON(API + '?action=list', { cache: 'no-store' });
       if (!j.ok) throw new Error(j.error || 'Could not load the Vault.');
       return j.fabrics;
@@ -485,7 +494,8 @@
         yardsHTML(f) +
         '<dl class="facts">' +
           fact('Source', f.source) + fact('Fibre', f.fibre) + fact('Width', f.width) + fact('Stored', f.bin) +
-          fact('Paid', f.paid === '' ? '' : 'S$' + f.paid.toFixed(2)) + fact('Notes', f.notes, true) +
+          // What you paid is private: only shown when Edit mode is unlocked.
+          (state.edit ? fact('Paid', f.paid === '' ? '' : 'S$' + f.paid.toFixed(2)) : '') + fact('Notes', f.notes, true) +
         '</dl>' +
       '</div>';
   }
@@ -506,7 +516,8 @@
 
   // ---------- Saving ----------
 
-  function cache() { if (!DEMO) store.set('fv-cache', state.fabrics.map(f => ({ ...f, photoData: '' }))); }
+  // The copy kept on this device only includes prices while Edit mode is unlocked.
+  function cache() { if (!DEMO) store.set('fv-cache', state.fabrics.map(f => ({ ...f, photoData: '', paid: state.edit ? f.paid : '' }))); }
 
   function afterChange() {
     cache();
@@ -613,7 +624,7 @@
 
   // ---------- Add / edit form ----------
 
-  let formMode = 'add', formId = null, pendingPhoto = '';
+  let formMode = 'add', formId = null, pendingPhoto = '', paidAtOpen = '';
   const field = id => $('#f-' + id);
 
   $('#famPick').innerHTML = FAMILIES.map(f =>
@@ -633,6 +644,7 @@
     ['name', 'source', 'fibre', 'width', 'bin', 'notes'].forEach(k => { field(k).value = f[k]; });
     field('yards').value = f.yards;
     field('paid').value = f.paid;
+    paidAtOpen = field('paid').value;
     field('photo').value = '';
     el.form.querySelectorAll('input[name="family"]').forEach(r => { r.checked = r.value === f.family; });
     const prev = $('#photoPreview'), url = id ? photoUrl(f, 800) : '';
@@ -701,6 +713,8 @@
       bin: field('bin').value.trim(),
       notes: field('notes').value.trim()
     };
+    // Only send the price if you changed it, so an edit can never wipe a price that wasn't loaded.
+    if (formMode === 'edit' && field('paid').value === paidAtOpen) delete data.paid;
     if (!data.family) { $('#formMsg').textContent = 'Pick a colour family.'; return; }
     if (formMode === 'add' && !pendingPhoto) { $('#formMsg').textContent = 'Add a photo of the fabric.'; return; }
     const btn = $('#saveBtn');
@@ -749,6 +763,8 @@
     state.edit = false;
     state.pass = '';
     store.del('fv-pass');
+    state.fabrics.forEach(f => { f.paid = ''; }); // forget prices on this device once locked
+    cache();
     render();
     renderSaving();
     if (el.detail.open) renderDetail();
@@ -777,7 +793,7 @@
       if (el.detail.open) renderDetail();
       toast('Edit mode on');
       renderSaving();
-      pumpQueue();
+      refresh().then(pumpQueue); // now loads the prices too
     } catch (err) {
       $('#lockMsg').textContent = err.network ? 'Couldn’t reach Google. Try again in a moment.' : err.message;
     } finally {
